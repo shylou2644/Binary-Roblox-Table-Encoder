@@ -39,7 +39,7 @@ Zipper.Pack = function(value)
 	end
 	
 	local function buildBlob(value, blob, blobPointers, seenValues)
-		local linearArray = isPackedArray(value)
+		
 		
 		if typeof(value) ~= "table" then
 			if value == true or value == false or value == nil or blobPointers[value] then
@@ -61,6 +61,7 @@ Zipper.Pack = function(value)
 		end
 		
 		seenValues[value] = true
+		local skipKeys = isPackedArray(value)
 		
 		for i, v in value do
 			if typeof(v) == "table" then
@@ -69,7 +70,7 @@ Zipper.Pack = function(value)
 				buildBlob(v, blob, blobPointers, seenValues)
 			end
 			
-			if linearArray then
+			if skipKeys then
 				continue
 			end
 			
@@ -100,10 +101,14 @@ Zipper.Pack = function(value)
 		i_stream += 2
 
 		for index, value in table do
+			entries += 1
+			
+			if entries > 65535 then
+				error("dictionary is too large to encode")
+			end
+			
 			encode(index, blobPointers)
 			encode(value, blobPointers)
-
-			entries += 1
 		end
 		
 		b_writeu16(stream, headerIndex, entries)
@@ -115,8 +120,13 @@ Zipper.Pack = function(value)
 		i_stream += 2
 
 		for index, value in table do
-			encode(value, blobPointers)
 			entries += 1
+			
+			if entries > 65535 then
+				error("dictionary is too large to encode")
+			end
+			
+			encode(value, blobPointers)
 		end
 
 		b_writeu16(stream, headerIndex, entries)
